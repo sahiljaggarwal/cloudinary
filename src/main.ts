@@ -2,6 +2,7 @@ import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { env } from './common/config/env.config';
 import * as cors from 'cors';
+import { ExceptionsFilter } from './common/filter/execption-filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,7 +18,10 @@ async function bootstrap() {
       origin: ['*', 'http://localhost:3000'],
     }),
   );
+
   app.setGlobalPrefix('api/');
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new ExceptionsFilter(httpAdapter));
 
   await app.listen(port, () =>
     console.log(`Server is running on port ${port} in ${env.NODE_ENV} mode`),

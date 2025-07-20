@@ -5,11 +5,15 @@ import {
 } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
 import { getS3Client } from 'src/common/config/aws.config';
-import { env } from 'src/common/config/env.config';
+import { env, envSchema } from 'src/common/config/env.config';
 import { v4 as uuid } from 'uuid';
 import { GetFileDto } from './dto/get-file.dto';
 import { Readable } from 'stream';
 import * as sharp from 'sharp';
+import * as path from 'path';
+import { ImageQueue } from '../queues/image/image.queue';
+import { v4 as uuidv4 } from 'uuid';
+import { extname } from 'path';
 
 @Injectable()
 export class FileService {
@@ -17,30 +21,21 @@ export class FileService {
   private originalBucket = env.ORIGINAL_BUCKET_NAME;
   private transformedBucket = env.TRANSFORMED_BUCKET_NAME;
 
+  constructor(private readonly imageQueue: ImageQueue) {}
+
   async uploadOriginalFile(file: any) {
-    // const folder = uuid();
-    const folder = 'default';
-    const key = `${folder}/${file.originalname}`;
-
-    await this.s3.send(
-      new PutObjectCommand({
-        Bucket: this.originalBucket,
-        Key: key,
-        Body: file.buffer,
-      }),
-    );
-
-    return { key };
+    const baseFileName = Date.now();
+    const fileName = `${baseFileName}.webp`;
+    await this.imageQueue.uploadOriginalImage(file, 'default', fileName);
+    return {
+      key: `${fileName}`,
+    };
   }
 
   async handleTransformedImage(query: GetFileDto) {
     const { key, height, width, quality } = query;
-    console.log('query ', query);
     const transformedKey = this.getTransformedKey(key, height, width, quality);
-    console.log('tranformed key ', transformedKey);
-    console.log('this.transformedBucket ', this.transformedBucket);
     try {
-      console.log('line 43');
       await this.s3.send(
         new HeadObjectCommand({
           Bucket: this.transformedBucket,
@@ -56,33 +51,21 @@ export class FileService {
         throw error;
       }
     }
-    console.log('line 54 ');
     const originalImage = await this.s3.send(
       new GetObjectCommand({ Bucket: this.originalBucket, Key: key }),
     );
-    console.log('line 58 original image ', !!originalImage);
     const originalBuffer = await this.streamToBuffer(
       originalImage.Body as Readable,
     );
-    console.log('line 62 original buffer ', originalBuffer);
     let transformer = sharp(originalBuffer);
-    console.log('tranformer ', transformer);
     if (width || height) {
-      console.log('height width ', width);
       transformer = transformer.resize(
         width ? +width : undefined,
         height ? +height : undefined,
       );
-      console.log('transformer line 71 ', transformer);
     }
-    console.log('transformer line 73 ');
-    if (quality) {
-      console.log('transformer line 75 ', quality);
-      transformer = transformer.jpeg({ quality: +quality });
-      console.log('transformer line 77 ', transformer);
-    }
+    transformer = transformer.webp({ quality: +quality || 80 });
     const transformedBuffer = await transformer.toBuffer();
-    console.log('transformer line 80 ', transformedBuffer);
 
     await this.s3.send(
       new PutObjectCommand({
@@ -91,8 +74,6 @@ export class FileService {
         Body: transformedBuffer,
       }),
     );
-    console.log('transformer line 89 ', this.transformedBucket);
-    console.log('transformer line 90 ', transformedKey);
     return this.getPresignedUrl(this.transformedBucket, transformedKey);
   }
 
@@ -102,12 +83,13 @@ export class FileService {
     width?: string,
     quality?: string,
   ) {
-    return `${key}?h=${height}&w=${width}&q=${quality}`;
+    const ext = path.extname(key);
+    const baseName = key.replace(ext, '');
+    return `${baseName}_h${height || ''}_w${width || ''}_q${quality || ''}.webp`;
   }
 
   private async getPresignedUrl(bucket: string, key: string) {
-    const url = `https://${bucket}.s3.amazonaws.com/${key}`;
-    console.log('url', url);
+    const url = `https://${env.TRANSFORMED_CLOUDFRONT_DOMAIN}/${key}`;
     return url;
   }
 

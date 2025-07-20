@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { FileService } from './file.service';
 import { FileController } from './file.controller';
+import { QueueModule } from '../queues/queue.module';
 
 @Module({
-  imports: [],
+  imports: [QueueModule],
   providers: [FileService],
   controllers: [FileController],
 })
