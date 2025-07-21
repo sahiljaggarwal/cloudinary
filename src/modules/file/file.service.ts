@@ -72,6 +72,7 @@ export class FileService {
         Bucket: this.transformedBucket,
         Key: transformedKey,
         Body: transformedBuffer,
+        ContentType: 'image/webp',
       }),
     );
     return this.getPresignedUrl(this.transformedBucket, transformedKey);

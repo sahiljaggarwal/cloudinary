@@ -20,6 +20,7 @@ export class ImageProcessor {
           Bucket: this.originalBucket,
           Key: key,
           Body: Buffer.from(buffer.data),
+          ContentType: 'image/webp',
         }),
       );
       console.log('after response ', response);
