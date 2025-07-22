@@ -2,13 +2,14 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { ImageQueue } from './image/image.queue';
 import { ImageProcessor } from './image/image.processor';
+import { env } from 'src/common/config/env.config';
 
 @Module({
   imports: [
     BullModule.forRoot({
       redis: {
-        host: 'localhost',
-        port: 6379,
+        host: env.REDIS_HOST,
+        port: env.REDIS_PORT,
       },
     }),
     BullModule.registerQueue({ name: 'image-upload' }),

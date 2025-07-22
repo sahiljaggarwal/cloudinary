@@ -4,16 +4,13 @@ import {
   PutObjectCommand,
 } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
-import { getS3Client } from 'src/common/config/aws.config';
-import { env, envSchema } from 'src/common/config/env.config';
-import { v4 as uuid } from 'uuid';
-import { GetFileDto } from './dto/get-file.dto';
-import { Readable } from 'stream';
-import * as sharp from 'sharp';
 import * as path from 'path';
+import * as sharp from 'sharp';
+import { getS3Client } from 'src/common/config/aws.config';
+import { env } from 'src/common/config/env.config';
+import { Readable } from 'stream';
 import { ImageQueue } from '../queues/image/image.queue';
-import { v4 as uuidv4 } from 'uuid';
-import { extname } from 'path';
+import { GetFileDto } from './dto/get-file.dto';
 
 @Injectable()
 export class FileService {
@@ -33,7 +30,7 @@ export class FileService {
   }
 
   async handleTransformedImage(query: GetFileDto) {
-    const { key, height, width, quality } = query;
+    const { key, height = '0', width = '0', quality = '80' } = query;
     const transformedKey = this.getTransformedKey(key, height, width, quality);
     try {
       await this.s3.send(
@@ -78,6 +75,36 @@ export class FileService {
     return this.getPresignedUrl(this.transformedBucket, transformedKey);
   }
 
+  async serveFromTransformedDirect(key: string): Promise<Readable> {
+    const s3Obj = await this.s3.send(
+      new GetObjectCommand({ Bucket: this.transformedBucket, Key: key }),
+    );
+    return s3Obj.Body as Readable;
+  }
+
+  async serveTransformedFile(
+    key: string,
+    query: GetFileDto,
+  ): Promise<Readable> {
+    const transformedKey = this.getTransformedKey(
+      key,
+      query.height,
+      query.width,
+      query.quality,
+    );
+
+    // ensure it exists
+    await this.handleTransformedImage(query);
+
+    const s3Obj = await this.s3.send(
+      new GetObjectCommand({
+        Bucket: this.transformedBucket,
+        Key: transformedKey,
+      }),
+    );
+    return s3Obj.Body as Readable;
+  }
+
   private getTransformedKey(
     key: string,
     height?: string,
@@ -90,8 +117,9 @@ export class FileService {
   }
 
   private async getPresignedUrl(bucket: string, key: string) {
-    const url = `https://${env.TRANSFORMED_CLOUDFRONT_DOMAIN}/${key}`;
-    return url;
+    // const url = `https://${env.TRANSFORMED_CLOUDFRONT_DOMAIN}/${key}`;
+    // return url;
+    return `/api/file/serve/${key}`;
   }
 
   private streamToBuffer(stream: Readable): Promise<Buffer> {

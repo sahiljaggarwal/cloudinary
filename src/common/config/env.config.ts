@@ -18,7 +18,7 @@ export const envSchema = z.object({
   TRANSFORMED_CLOUDFRONT_DOMAIN: z.string(),
 
   REDIS_HOST: z.string(),
-  REDIS_PORT: z.string(),
+  REDIS_PORT: z.coerce.number(),
 });
 
 const parsed = envSchema.safeParse(process.env);

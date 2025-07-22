@@ -23,7 +23,7 @@ async function bootstrap() {
   const { httpAdapter } = app.get(HttpAdapterHost);
   app.useGlobalFilters(new ExceptionsFilter(httpAdapter));
 
-  await app.listen(port, () =>
+  await app.listen(port, '0.0.0.0', () =>
     console.log(`Server is running on port ${port} in ${env.NODE_ENV} mode`),
   );
 }

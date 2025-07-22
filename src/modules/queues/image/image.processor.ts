@@ -12,6 +12,7 @@ export class ImageProcessor {
   @Process('upload-original')
   async handleUploadOriginal(job: Job) {
     const { buffer, originalname, folder, fileName } = job.data;
+    console.log('job data ', buffer, originalname, folder, fileName);
 
     const key = `${fileName}`;
     try {
