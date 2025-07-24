@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -40,38 +41,45 @@ export class FileController {
     return new ApiSuccessResponse(true, 200, url);
   }
 
+  // @Get('serve/:key')
+  // async serveFile(
+  //   @Param('key') key: string,
+  //   @Query() query: GetFileDto,
+  //   @Res() res: Response,
+  // ) {
+  //   const hasFilters =
+  //     query.width !== undefined ||
+  //     query.height !== undefined ||
+  //     query.quality !== undefined;
+
+  //   let stream: Readable;
+  //   if (hasFilters) {
+  //     // transform / resize
+  //     const safeQuery: GetFileDto = {
+  //       key,
+  //       width: query.width ?? '0',
+  //       height: query.height ?? '0',
+  //       quality: query.quality ?? '80',
+  //     };
+  //     console.log('with filter called');
+  //     stream = await this.fileService.serveTransformedFile(key, safeQuery);
+  //   } else {
+  //     // serve unchanged file
+  //     console.log('without filter called');
+  //     stream = await this.fileService.serveFromTransformedDirect(key);
+  //   }
+
+  //   res.set({
+  //     'Content-Type': 'image/webp',
+  //     'Cache-Control': 'public, max-age=31536000',
+  //   });
+  //   stream.pipe(res);
+  // }
+
   @Get('serve/:key')
-  async serveFile(
-    @Param('key') key: string,
-    @Query() query: GetFileDto,
-    @Res() res: Response,
-  ) {
-    const hasFilters =
-      query.width !== undefined ||
-      query.height !== undefined ||
-      query.quality !== undefined;
-
-    let stream: Readable;
-    if (hasFilters) {
-      // transform / resize
-      const safeQuery: GetFileDto = {
-        key,
-        width: query.width ?? '0',
-        height: query.height ?? '0',
-        quality: query.quality ?? '80',
-      };
-      console.log('with filter called');
-      stream = await this.fileService.serveTransformedFile(key, safeQuery);
-    } else {
-      // serve unchanged file
-      console.log('without filter called');
-      stream = await this.fileService.serveFromTransformedDirect(key);
-    }
-
-    res.set({
-      'Content-Type': 'image/webp',
-      'Cache-Control': 'public, max-age=31536000',
-    });
-    stream.pipe(res);
+  @Header('Cache-Control', 'public, max-age=86400')
+  serveFile(@Param('key') key: string, @Res() res: Response) {
+    const cdnUrl = `https://${env.TRANSFORMED_CLOUDFRONT_DOMAIN}/${key}`;
+    return res.redirect(302, cdnUrl);
   }
 }
