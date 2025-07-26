@@ -105,12 +105,13 @@ export class FileService {
     return s3Obj.Body as Readable;
   }
 
-  private getTransformedKey(
+  getTransformedKey(
     key: string,
     height?: string,
     width?: string,
     quality?: string,
   ) {
+    console.log('**dndsd ', height, width, quality);
     const ext = path.extname(key);
     const baseName = key.replace(ext, '');
     return `${baseName}_h${height || ''}_w${width || ''}_q${quality || ''}.webp`;
@@ -122,12 +123,52 @@ export class FileService {
     return `/api/file/serve/${key}`;
   }
 
-  private streamToBuffer(stream: Readable): Promise<Buffer> {
+  async streamToBuffer(stream: Readable): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       stream.on('data', (chunk) => chunks.push(chunk));
       stream.on('end', () => resolve(Buffer.concat(chunks)));
       stream.on('error', reject);
     });
+  }
+
+  async transformAndUpload(query: GetFileDto): Promise<Buffer> {
+    console.log('query ', query);
+    console.log(
+      'height width quality type ',
+      typeof query.height,
+      query.width,
+      query.quality,
+    );
+    const { key, height = '0', width = '0', quality = '80' } = query;
+    const transformedKey = this.getTransformedKey(key, height, width, quality);
+
+    const originalImage = await this.s3.send(
+      new GetObjectCommand({ Bucket: this.originalBucket, Key: key }),
+    );
+    const originalBuffer = await this.streamToBuffer(
+      originalImage.Body as Readable,
+    );
+
+    let transformer = sharp(originalBuffer);
+    if (width || height) {
+      transformer = transformer.resize(
+        width ? +width : undefined,
+        height ? +height : undefined,
+      );
+    }
+    transformer = transformer.webp({ quality: +quality || 80 });
+    const transformedBuffer = await transformer.toBuffer();
+
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.transformedBucket,
+        Key: transformedKey,
+        Body: transformedBuffer,
+        ContentType: 'image/webp',
+      }),
+    );
+
+    return transformedBuffer;
   }
 }
