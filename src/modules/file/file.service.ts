@@ -1,6 +1,7 @@
 import {
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
 } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
@@ -20,12 +21,49 @@ export class FileService {
 
   constructor(private readonly imageQueue: ImageQueue) {}
 
-  async uploadOriginalFile(file: any) {
+  async uploadOriginalFile(file: any, appName: string) {
     const baseFileName = Date.now();
     const fileName = `${baseFileName}.webp`;
-    await this.imageQueue.uploadOriginalImage(file, 'default', fileName);
+    console.log('baseFile ', baseFileName, fileName, appName);
+    await this.imageQueue.uploadOriginalImage(
+      file,
+      'default',
+      fileName,
+      appName,
+    );
     return {
       key: `${fileName}`,
+    };
+  }
+
+  async getOriginalImagesByApiKey(appName: string) {
+    const command = new ListObjectsV2Command({
+      Bucket: this.originalBucket,
+      Prefix: `${appName}/`,
+    });
+
+    const result = await this.s3.send(command);
+
+    const keys = result.Contents?.map((obj) => obj.Key) || [];
+
+    return {
+      appName,
+      files: keys,
+    };
+  }
+  async getTransformsImagesByApiKey(appName: string) {
+    const command = new ListObjectsV2Command({
+      Bucket: this.transformedBucket,
+      Prefix: `${appName}/`,
+    });
+
+    const result = await this.s3.send(command);
+
+    const keys = result.Contents?.map((obj) => obj.Key) || [];
+
+    return {
+      appName,
+      files: keys,
     };
   }
 
@@ -111,10 +149,10 @@ export class FileService {
     width?: string,
     quality?: string,
   ) {
-    console.log('**dndsd ', height, width, quality);
-    const ext = path.extname(key);
-    const baseName = key.replace(ext, '');
-    return `${baseName}_h${height || ''}_w${width || ''}_q${quality || ''}.webp`;
+    // const ext = path.extname(key);
+    // const baseName = key.replace(ext, '');
+    // return `${baseName}_h${height || ''}_w${width || ''}_q${quality || ''}.webp`;
+    return key;
   }
 
   private async getPresignedUrl(bucket: string, key: string) {
