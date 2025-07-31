@@ -6,22 +6,24 @@ import { Queue } from 'bull';
 export class ImageQueue {
   constructor(@InjectQueue('image-upload') private readonly queue: Queue) {}
 
-  async uploadOriginalImage(
+  async uploadTransformImage(
     file: any,
     folder = 'default',
     fileName: any,
-    appName: string,
+    transformOptions: { height: number; width: number; quality: number },
+    apiKey: string,
   ) {
-    console.log('job start ', folder, fileName, appName);
-    const job = await this.queue.add('upload-original', {
+    const job = await this.queue.add('upload-transform', {
       buffer: file.buffer,
-      originalname: file.originalname,
       mimetype: file.mimetype,
       folder,
       fileName,
-      appName,
+      transformOptions,
+      metadata: {
+        appId: folder,
+        apiKey: apiKey,
+      },
     });
-    console.log('✅ Job Added:', job?.id);
     return job;
   }
 }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Head,
@@ -39,25 +40,30 @@ export class FileController {
   @Post('upload')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(@UploadedFile() file: UploadFileDto, @Req() req: Request) {
+  async uploadFile(
+    @UploadedFile() file: UploadFileDto,
+    @Req() req: Request,
+    @Query() query: { height: string; width: string; quality: string },
+  ) {
     const Key = req.headers['x-api-key'] as string;
     const appName = Object.keys(APPS).find((name) => APPS[name].key === Key);
 
+    const transformOptions = {
+      height: query.height ? parseInt(query.height) : 800,
+      width: query.width ? parseInt(query.width) : 600,
+      quality: query.quality ? parseInt(query.quality) : 80,
+    };
+
     if (!appName) throw new Error('Invalid API key');
-    console.log('appName', appName);
-    const { key } = await this.fileService.uploadOriginalFile(file, appName);
-    // return new ApiSuccessResponse(true, 200, 'File uploaded successfully', {
-    //   key,
-    // });
-
-    return { ok: 'o' };
-  }
-
-  @Get('transform')
-  @HttpCode(HttpStatus.OK)
-  async getTransformedFile(@Query() query: GetFileDto) {
-    const url = await this.fileService.handleTransformedImage(query);
-    return new ApiSuccessResponse(true, 200, url);
+    const { key } = await this.fileService.uploadTransformFile(
+      file,
+      appName,
+      transformOptions,
+      Key,
+    );
+    return new ApiSuccessResponse(true, 200, 'File uploaded successfully', {
+      key,
+    });
   }
 
   @Get('serve/:key')
@@ -68,16 +74,22 @@ export class FileController {
     @Headers('x-api-key') apiKey: string,
   ) {
     const appName = Object.keys(APPS).find((name) => APPS[name].key === apiKey);
+
     if (!appName) {
       return res.status(401).send('Invalid API key');
     }
-    // if (isTransformedImage(key)) {
-    // const cdnUrl = `https://${env.TRANSFORMED_CLOUDFRONT_DOMAIN}/${appName}${key}`;
-    // return res.redirect(302, cdnUrl);
-    // } else {
-    const cdnUrl = `https://${env.ORIGINAL_CLOUDFRONT_DOMAIN}/${appName}/${key}`;
+
+    const cdnUrl = `https://${env.TRANSFORMED_CLOUDFRONT_DOMAIN}/${appName}/${key}`;
+
     return res.redirect(302, cdnUrl);
   }
+
+  // @Get('transform')
+  // @HttpCode(HttpStatus.OK)
+  // async getTransformedFile(@Query() query: GetFileDto) {
+  //   const url = await this.fileService.handleTransformedImage(query);
+  //   return new ApiSuccessResponse(true, 200, url);
+  // }
 
   // @Get('serve/:key')
   // @Header('Cache-Control', 'public, max-age=86400')
@@ -172,13 +184,23 @@ export class FileController {
 
   @Get('transforms')
   @HttpCode(HttpStatus.OK)
-  async getTransformsBucketImages(@Headers('x-api-key') apiKey: string) {
+  async getTransformsBucketImages(
+    @Headers('x-api-key') apiKey: string,
+    @Query() query: { limit?: string; nextToken?: string },
+  ) {
     const appName = Object.keys(APPS).find((name) => APPS[name].key === apiKey);
 
     if (!appName) throw new Error('Invalid API key');
 
-    const response =
-      await this.fileService.getTransformsImagesByApiKey(appName);
+    const limit = query.limit ? parseInt(query.limit) : 10;
+    if (limit < 1 || limit > 100)
+      throw new BadRequestException('Limit must be between 1 and 100');
+
+    const response = await this.fileService.getTransformsImagesByApiKey(
+      appName,
+      limit,
+      query.nextToken,
+    );
     return new ApiSuccessResponse(
       true,
       200,

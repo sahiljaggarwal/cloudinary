@@ -21,15 +21,20 @@ export class FileService {
 
   constructor(private readonly imageQueue: ImageQueue) {}
 
-  async uploadOriginalFile(file: any, appName: string) {
+  async uploadTransformFile(
+    file: any,
+    appName: string,
+    transformOptions: { height: number; width: number; quality: number },
+    apiKey: string,
+  ) {
     const baseFileName = Date.now();
     const fileName = `${baseFileName}.webp`;
-    console.log('baseFile ', baseFileName, fileName, appName);
-    await this.imageQueue.uploadOriginalImage(
+    await this.imageQueue.uploadTransformImage(
       file,
-      'default',
-      fileName,
       appName,
+      fileName,
+      transformOptions,
+      apiKey,
     );
     return {
       key: `${fileName}`,
@@ -51,18 +56,36 @@ export class FileService {
       files: keys,
     };
   }
-  async getTransformsImagesByApiKey(appName: string) {
+  
+  async getTransformsImagesByApiKey(
+    appName: string,
+    limit: number,
+    continuationToken?: string,
+  ) {
     const command = new ListObjectsV2Command({
       Bucket: this.transformedBucket,
       Prefix: `${appName}/`,
+      MaxKeys: limit,
+      ContinuationToken: continuationToken,
     });
 
     const result = await this.s3.send(command);
 
-    const keys = result.Contents?.map((obj) => obj.Key) || [];
+    const keys =
+      result.Contents?.map((obj) => ({
+        key: obj.Key,
+        lastModified: obj.LastModified,
+        size: obj.Size,
+      })) || [];
 
     return {
       appName,
+      pagination: {
+        limit: limit,
+        hasNextPage: result.IsTruncated || false,
+        nextToken: result.NextContinuationToken,
+        itemCount: keys.length,
+      },
       files: keys,
     };
   }

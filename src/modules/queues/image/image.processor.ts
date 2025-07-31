@@ -7,27 +7,35 @@ import { env } from 'src/common/config/env.config';
 @Processor('image-upload')
 export class ImageProcessor {
   private s3 = getS3Client();
-  private originalBucket = env.ORIGINAL_BUCKET_NAME;
+  private transformBucket = env.TRANSFORMED_BUCKET_NAME;
 
-  @Process('upload-original')
+  @Process('upload-transform')
   async handleUploadOriginal(job: Job) {
-    const { buffer, originalname, folder, fileName, appName } = job.data;
-    console.log('job data ', buffer, originalname, folder, fileName);
-    console.log('app name ', appName);
+    const { buffer, folder, fileName, transformOptions, metadata } = job.data;
 
-    const key = `${appName}/${fileName}`;
-    console.log('key ', key);
+    const key = `${folder}/${fileName}`;
     try {
-      let response: any;
-      // response = await this.s3.send(
-      //   new PutObjectCommand({
-      //     Bucket: this.originalBucket,
-      //     Key: key,
-      //     Body: Buffer.from(buffer.data),
-      //     ContentType: 'image/webp',
-      //   }),
-      // );
-      console.log('after response ', response);
+      const sharp = require('sharp');
+      const transformedBuffer = await sharp(Buffer.from(buffer.data))
+        .resize(transformOptions.width, transformOptions.height)
+        .webp({ quality: transformOptions.quality })
+        .toBuffer();
+
+      const response = await this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.transformBucket,
+          Key: key,
+          Body: transformedBuffer,
+          ContentType: 'image/webp',
+          Metadata: {
+            'app-id': metadata.appId,
+            'api-key': metadata.apiKey,
+            'original-height': transformOptions.height.toString(),
+            'original-width': transformOptions.width.toString(),
+            quality: transformOptions.quality.toString(),
+          },
+        }),
+      );
     } catch (error) {
       console.error('s3 image upload error ', error);
     }
