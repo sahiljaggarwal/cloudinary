@@ -196,10 +196,20 @@ export class FileController {
     if (limit < 1 || limit > 100)
       throw new BadRequestException('Limit must be between 1 and 100');
 
+    let continuationToken: string | undefined = undefined;
+    if (query.nextToken) {
+      try {
+        continuationToken = query.nextToken;
+      } catch (err) {
+        throw new BadRequestException('Invalid nextToken encoding');
+      }
+    }
+    console.log('Original token:', query.nextToken);
+    console.log('Decoded token:', continuationToken);
     const response = await this.fileService.getTransformsImagesByApiKey(
       appName,
       limit,
-      query.nextToken,
+      continuationToken,
     );
     return new ApiSuccessResponse(
       true,
