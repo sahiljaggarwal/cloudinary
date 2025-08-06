@@ -3,6 +3,10 @@ import { BullModule } from '@nestjs/bull';
 import { ImageQueue } from './image/image.queue';
 import { ImageProcessor } from './image/image.processor';
 import { env } from 'src/common/config/env.config';
+import { MetaProcessor } from './meta/meta.processor';
+import { MetaQueue } from './meta/meta-data.queue';
+import { AppService } from 'src/app.service';
+import { AppsService } from 'src/common/config/apps.service';
 
 @Module({
   imports: [
@@ -13,8 +17,15 @@ import { env } from 'src/common/config/env.config';
       },
     }),
     BullModule.registerQueue({ name: 'image-upload' }),
+    BullModule.registerQueue({ name: 'meta-update' }),
   ],
-  providers: [ImageQueue, ImageProcessor],
-  exports: [ImageQueue],
+  providers: [
+    ImageQueue,
+    ImageProcessor,
+    MetaProcessor,
+    MetaQueue,
+    AppsService,
+  ],
+  exports: [ImageQueue, MetaQueue],
 })
 export class QueueModule {}

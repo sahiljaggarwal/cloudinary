@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
-import { FileService } from './file.service';
-import { FileController } from './file.controller';
+import { AppsService } from 'src/common/config/apps.service';
 import { QueueModule } from '../queues/queue.module';
-import Redis from 'ioredis';
-import { RedisService } from '../redis/redis.service';
+import { FileController } from './file.controller';
+import { FileService } from './file.service';
 
 @Module({
   imports: [QueueModule],
-  providers: [FileService, RedisService],
+  providers: [FileService, AppsService],
   controllers: [FileController],
 })
 export class FileModule {}

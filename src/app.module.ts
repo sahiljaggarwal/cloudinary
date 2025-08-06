@@ -5,6 +5,8 @@ import { ConfigModule } from '@nestjs/config';
 import { envSchema } from './common/config/env.config';
 import { FileModule } from './modules/file/file.module';
 import { QueueModule } from './modules/queues/queue.module';
+import { MetaDataModule } from './modules/meta-data/meta-data.module';
+import { AppsService } from './common/config/apps.service';
 
 @Module({
   imports: [
@@ -22,9 +24,10 @@ import { QueueModule } from './modules/queues/queue.module';
       },
     }),
     FileModule,
+    MetaDataModule,
     QueueModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, AppsService],
 })
 export class AppModule {}

@@ -56,7 +56,27 @@ export class FileService {
       files: keys,
     };
   }
-  
+
+  async deleteFile(key: string, apiKey: string, appName) {
+    // try {54
+    const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+    const s3 = getS3Client();
+
+    const s3Key = key.includes('/') ? key : `${appName}/${key}`;
+
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: env.TRANSFORMED_BUCKET_NAME,
+        Key: s3Key,
+      }),
+    );
+
+    return { key: s3Key };
+    // } catch (error) {
+    //   throw new Error(`Failed to delete file: ${error.message}`);
+    // }
+  }
+
   async getTransformsImagesByApiKey(
     appName: string,
     limit: number,
