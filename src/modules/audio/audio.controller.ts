@@ -11,12 +11,15 @@ import {
   HttpException,
   HttpStatus,
   Body,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response, Request } from 'express';
 import { AudioService } from './audio.service';
+import { ApiKeyGaurd } from 'src/common/gaurds/api-key.guide';
 
 @Controller('audio')
+@UseGuards(ApiKeyGaurd)
 export class AudioController {
   constructor(private readonly audioService: AudioService) {}
 

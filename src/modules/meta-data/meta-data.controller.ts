@@ -8,12 +8,15 @@ import {
   Param,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiSuccessResponse } from 'src/common/response/api-success-reponse';
 import { MetadataService } from './meta-data.service';
 import { AppsService } from 'src/common/config/apps.service';
+import { ApiKeyGaurd } from 'src/common/gaurds/api-key.guide';
 
 @Controller('meta-data')
+@UseGuards(ApiKeyGaurd)
 export class MetaDataController {
   constructor(
     private readonly metaDataService: MetadataService,
