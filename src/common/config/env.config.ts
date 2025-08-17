@@ -17,8 +17,11 @@ export const envSchema = z.object({
   ORIGINAL_CLOUDFRONT_DOMAIN: z.string(),
   TRANSFORMED_CLOUDFRONT_DOMAIN: z.string(),
 
-  REDIS_HOST: z.string(),
-  REDIS_PORT: z.coerce.number(),
+  // REDIS_HOST: z.string(),
+  // REDIS_PORT: z.coerce.number(),
+
+  AUDIO_BUCKET_NAME: z.string().min(1),
+  AUDIO_CLOUDFRONT_DOMAIN: z.string().min(1),
 });
 
 const parsed = envSchema.safeParse(process.env);

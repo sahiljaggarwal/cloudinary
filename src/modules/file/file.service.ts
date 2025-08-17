@@ -5,12 +5,10 @@ import {
   PutObjectCommand,
 } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
-import * as path from 'path';
 import * as sharp from 'sharp';
 import { getS3Client } from 'src/common/config/aws.config';
 import { env } from 'src/common/config/env.config';
 import { Readable } from 'stream';
-import { ImageQueue } from '../queues/image/image.queue';
 import { GetFileDto } from './dto/get-file.dto';
 
 @Injectable()
@@ -18,8 +16,6 @@ export class FileService {
   private s3 = getS3Client();
   private originalBucket = env.ORIGINAL_BUCKET_NAME;
   private transformedBucket = env.TRANSFORMED_BUCKET_NAME;
-
-  constructor(private readonly imageQueue: ImageQueue) {}
 
   async uploadTransformFile(
     file: any,
@@ -29,16 +25,54 @@ export class FileService {
   ) {
     const baseFileName = Date.now();
     const fileName = `${baseFileName}.webp`;
-    await this.imageQueue.uploadTransformImage(
-      file,
-      appName,
-      fileName,
-      transformOptions,
-      apiKey,
-    );
+    const job = {
+      buffer: file.buffer,
+      folder: appName,
+      fileName: fileName,
+      transformOptions: transformOptions,
+      metadata: {
+        appId: appName,
+        apiKey: apiKey,
+      },
+    };
+    await this.handleUploadOriginal(job);
     return {
       key: `${fileName}`,
     };
+  }
+
+  private async handleUploadOriginal(job: any) {
+    const { buffer, folder, fileName, transformOptions, metadata } = job;
+
+    const key = `${folder}/${fileName}`;
+    try {
+      const sharp = require('sharp');
+      const transformedBuffer = await sharp(Buffer.from(buffer))
+        .resize(transformOptions.width, transformOptions.height)
+        .webp({ quality: transformOptions.quality })
+        .toBuffer();
+
+      const response = await this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.transformedBucket,
+          Key: key,
+          Body: transformedBuffer,
+          ContentType: 'image/webp',
+          Metadata: {
+            'app-id': metadata.appId,
+            'api-key': metadata.apiKey,
+            'original-height': transformOptions.height.toString(),
+            'original-width': transformOptions.width.toString(),
+            quality: transformOptions.quality.toString(),
+          },
+        }),
+      );
+      console.log('s3 image upload response ', response);
+    } catch (error) {
+      console.error('s3 image upload error ', error);
+    }
+
+    return { key };
   }
 
   async getOriginalImagesByApiKey(appName: string) {
@@ -57,8 +91,7 @@ export class FileService {
     };
   }
 
-  async deleteFile(key: string, apiKey: string, appName) {
-    // try {54
+  async deleteFile(key: string, apiKey: string, appName: any) {
     const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
     const s3 = getS3Client();
 
@@ -72,9 +105,6 @@ export class FileService {
     );
 
     return { key: s3Key };
-    // } catch (error) {
-    //   throw new Error(`Failed to delete file: ${error.message}`);
-    // }
   }
 
   async getTransformsImagesByApiKey(
@@ -192,15 +222,10 @@ export class FileService {
     width?: string,
     quality?: string,
   ) {
-    // const ext = path.extname(key);
-    // const baseName = key.replace(ext, '');
-    // return `${baseName}_h${height || ''}_w${width || ''}_q${quality || ''}.webp`;
     return key;
   }
 
   private async getPresignedUrl(bucket: string, key: string) {
-    // const url = `https://${env.TRANSFORMED_CLOUDFRONT_DOMAIN}/${key}`;
-    // return url;
     return `/api/file/serve/${key}`;
   }
 

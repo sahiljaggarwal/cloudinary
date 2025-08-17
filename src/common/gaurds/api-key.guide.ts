@@ -14,7 +14,9 @@ export class ApiKeyGaurd implements CanActivate {
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
     const key = context.switchToHttp().getRequest().headers['x-api-key'];
+    console.log('api key ', key);
     const found = this.appsService.findAppNameByKey(key);
+    console.log('found app name ', found);
     if (!found) throw new UnauthorizedException('Bad API key');
     return true;
   }

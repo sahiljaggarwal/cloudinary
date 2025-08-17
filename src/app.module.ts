@@ -4,9 +4,9 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { envSchema } from './common/config/env.config';
 import { FileModule } from './modules/file/file.module';
-import { QueueModule } from './modules/queues/queue.module';
 import { MetaDataModule } from './modules/meta-data/meta-data.module';
 import { AppsService } from './common/config/apps.service';
+import { AudioModule } from './modules/audio/audio.module';
 
 @Module({
   imports: [
@@ -25,7 +25,7 @@ import { AppsService } from './common/config/apps.service';
     }),
     FileModule,
     MetaDataModule,
-    QueueModule,
+    AudioModule,
   ],
   controllers: [AppController],
   providers: [AppService, AppsService],
